@@ -276,6 +276,11 @@ type Config struct {
 	AuthorizationDetailsStrategy RFC9396AuthorizationDetailsStrategy
 
 	IgnoreUnknownAuthorizationDetailsType bool
+	RestrictAuthorizationDetailsType      bool
+
+	// AuthorizationDetailsLimits sets the limits impose on authorization_details
+	// such as how many can be requested, the size and the depth of authorization detail JSON
+	AuthorizationDetailsLimits *RFC9396AuthorizationDetailsLimits
 }
 
 func (c *Config) GetGlobalSecret(ctx context.Context) ([]byte, error) {
@@ -638,12 +643,29 @@ func (c *Config) GetAuthorizationDetailTypeHandlers(ctx context.Context) map[str
 	return c.AuthorizationDetailsTypeHandlers
 }
 
+// GetDefaultAuthorizationDetailTypeHandler returns the default type handler
+func (c *Config) GetDefaultAuthorizationDetailTypeHandler(ctx context.Context) RFC9396AuthorizationDetailsTypeHandler {
+	return &RFC9396DefaultAuthorizationDetailsTypeHandler{}
+}
+
 // GetAuthorizationDetailsStrategy returns a RFC9396AuthorizationDetailsStrategy.
 func (c *Config) GetAuthorizationDetailsStrategy(ctx context.Context) RFC9396AuthorizationDetailsStrategy {
 	return c.AuthorizationDetailsStrategy
 }
 
-// GetIgnoreUnknownAuthorizationDetailsType indicates if unknown authorization details should be ignored.
+// ShouldRestrictAuthorizationDetailsType indicates whether authorization detail types that can be requested are restricted.
+func (c *Config) ShouldRestrictAuthorizationDetailsType(ctx context.Context) bool {
+	return c.RestrictAuthorizationDetailsType
+}
+
+// GetIgnoreUnknownAuthorizationDetailsType indicates if unknown authorization detail type should be ignored.
+// This only applies when authorization detail types are restricted.
 func (c *Config) GetIgnoreUnknownAuthorizationDetailsType(ctx context.Context) bool {
 	return c.IgnoreUnknownAuthorizationDetailsType
+}
+
+// GetAuthorizationDetailsLimits returns RFC9396AuthorizationDetailsLimits that defines the limits impose
+// on authorization_details such as how many can be requested, the size and the depth of authorization detail JSON
+func (c *Config) GetAuthorizationDetailsLimits(ctx context.Context) *RFC9396AuthorizationDetailsLimits {
+	return c.AuthorizationDetailsLimits
 }

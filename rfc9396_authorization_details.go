@@ -14,35 +14,45 @@ import (
 	"github.com/ory/x/errorsx"
 )
 
-type RFC9396AuthorizationDetailsType struct {
-	// Type is the authorization details type that is a mandatory part of the
-	// authorization details object prescribed by RFC9396.
-	Type string `json:"type,omitempty"`
+const internal_id = "___id___"
 
-	// Locations is an array of strings representing the location of the resource or RS.
-	// These strings are typically URIs identifying the location of the RS.
-	Locations []string `json:"locations,omitempty"`
-
-	// Actions is an array of strings representing the kinds of actions to be taken at the resource.
-	Actions []string `json:"actions,omitempty"`
-
-	// Datatypes is an array of strings representing the kinds of data being requested from the resource.
-	Datatypes []string `json:"datatypes,omitempty"`
-
-	// Identifier is a string identifier indicating a specific resource available at the API.
-	Identifier string `json:"identifier,omitempty"`
-
-	// Privileges is an array of strings representing the types or levels of privilege being requested at the resource.
-	Privileges []string `json:"privileges,omitempty"`
-
-	// Extra contains data that is non-prescriptive.
-	Extra map[string]interface{} `json:"-"`
-
-	// RFC9396AuthorizationDetailsTypeHandler extends the object with custom equals and validate functions.
-	RFC9396AuthorizationDetailsTypeHandler `json:"-"`
+// RFC9396AuthorizationDetailsLimits defines the authorization details limits
+type RFC9396AuthorizationDetailsLimits struct {
+	MaximumPerRequest int
+	MaximumJSONSize   int
+	MaximumJSONDepth  int
 }
 
-func (ad *RFC9396AuthorizationDetailsType) Equals(cmp *RFC9396AuthorizationDetailsType) bool {
+// RFC9396AuthorizationDetailsType is a map that holds authorization detail
+type RFC9396AuthorizationDetailsType map[string]any
+
+// SetID assign the calculated internal ID to the RFC9396AuthorizationDetailsType map
+func (ad RFC9396AuthorizationDetailsType) SetID(id string) {
+	ad[internal_id] = id
+}
+
+// GetID returns internal_id property if exists, otherwise return empty string
+func (ad RFC9396AuthorizationDetailsType) GetID() string {
+	return ad.GetPropertyAsString(internal_id)
+}
+
+// GetType return the 'type' property
+func (ad RFC9396AuthorizationDetailsType) GetType() string {
+	return ad.GetPropertyAsString("type")
+}
+
+// GetPropertyAsString return the specified property as a string
+func (ad RFC9396AuthorizationDetailsType) GetPropertyAsString(name string) string {
+	return Map(ad).SafeString(name, "")
+}
+
+// GetPropertyAsStringList return the specified property as a string list
+func (ad RFC9396AuthorizationDetailsType) GetPropertyAsStringList(name string) []string {
+	return Map(ad).SafeStringSlice(name, nil)
+}
+
+// Perform Equals
+func (ad RFC9396AuthorizationDetailsType) Equals(cmp RFC9396AuthorizationDetailsType) bool {
 	if ad == nil && cmp == nil {
 		return true
 	}
@@ -51,107 +61,84 @@ func (ad *RFC9396AuthorizationDetailsType) Equals(cmp *RFC9396AuthorizationDetai
 		return false
 	}
 
-	if ad.Type != cmp.Type {
+	if ad.GetType() != cmp.GetType() {
 		return false
-	} else if adID, err := ad.RFC9396AuthorizationDetailsTypeHandler.GetID(ad); err != nil {
-		return false
-	} else if cmpID, err := cmp.RFC9396AuthorizationDetailsTypeHandler.GetID(cmp); err != nil {
-		return false
-	} else {
-		return adID == cmpID
 	}
+	return ad.getIDOrDefault() == cmp.getIDOrDefault()
 }
 
-func (ad *RFC9396AuthorizationDetailsType) Validate() error {
-	return ad.RFC9396AuthorizationDetailsTypeHandler.Validate(ad)
+func (ad RFC9396AuthorizationDetailsType) getIDOrDefault() string {
+	if id := ad.GetID(); len(id) > 0 {
+		return id
+	}
+	// internal ID has not been calculated - for Equals, lets use a default strategy to differentiate
+	// hopefully this never happen as we calculate the internal ID when the request is received
+	// this can be detected in the tests when two authorization details of same type doesn't match although they suppose to match
+	dfltID, _ := RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy(ad)
+	return dfltID
 }
 
-func (ad *RFC9396AuthorizationDetailsType) UnmarshalJSON(data []byte) error {
+func (ad RFC9396AuthorizationDetailsType) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
 
-	m := map[string]interface{}{}
-	if err := json.Unmarshal(data, &m); err != nil {
+	if err := json.Unmarshal(data, &ad); err != nil {
 		return err
 	}
-
-	ad.Type, _ = m["type"].(string)
-	ad.Actions = Map(m).SafeStringSlice("actions", nil)
-	ad.Datatypes = Map(m).SafeStringSlice("datatypes", nil)
-	ad.Identifier, _ = m["identifier"].(string)
-	ad.Locations = Map(m).SafeStringSlice("locations", nil)
-	ad.Privileges = Map(m).SafeStringSlice("privileges", nil)
-
-	for k, v := range m {
-		if k == "type" || k == "actions" || k == "datatypes" || k == "identifier" || k == "locations" || k == "privileges" {
-			continue
-		}
-
-		if ad.Extra == nil {
-			ad.Extra = map[string]interface{}{}
-		}
-
-		ad.Extra[k] = v
-	}
-
 	return nil
 }
 
-func (ad *RFC9396AuthorizationDetailsType) MarshalJSON() ([]byte, error) {
-	m := ad.ToMap()
-	return json.Marshal(m)
+func (ad RFC9396AuthorizationDetailsType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(ad)
 }
 
-func (ad *RFC9396AuthorizationDetailsType) ToMap() map[string]any {
-	m := map[string]interface{}{
-		"type": ad.Type,
+func (ad RFC9396AuthorizationDetailsType) String() string {
+	if ad == nil {
+		return "<nil>"
 	}
+	return fmt.Sprintf("%+v", ad)
+}
 
-	if len(ad.Actions) > 0 {
-		m["actions"] = ad.Actions
-	}
-	if len(ad.Datatypes) > 0 {
-		m["datatypes"] = ad.Datatypes
-	}
-	if len(ad.Identifier) > 0 {
-		m["identifier"] = ad.Identifier
-	}
-	if len(ad.Locations) > 0 {
-		m["locations"] = ad.Locations
-	}
-	if len(ad.Privileges) > 0 {
-		m["privileges"] = ad.Privileges
-	}
+// WithoutInternalID returns copy of the map without internal ID
+// This should be called when outputting authorization detail in the response
+func (ad RFC9396AuthorizationDetailsType) WithoutInternalID() RFC9396AuthorizationDetailsType {
+	m := RFC9396AuthorizationDetailsType{}
 
-	for k, v := range ad.Extra {
+	for k, v := range ad {
+		if k == internal_id {
+			continue
+		}
 		m[k] = v
 	}
 
 	return m
 }
 
-func (ad *RFC9396AuthorizationDetailsType) DecorateWithTypeHandler(ctx context.Context, config RFC9396ConfigProvider) {
-	typeHandlers := config.GetAuthorizationDetailTypeHandlers(ctx)
-	if typeHandler, ok := typeHandlers[ad.Type]; ok {
-		ad.RFC9396AuthorizationDetailsTypeHandler = typeHandler
-	} else {
-		ad.RFC9396AuthorizationDetailsTypeHandler = &RFC9396DefaultAuthorizationDetailsTypeHandler{}
-	}
-}
-
-func (ad *RFC9396AuthorizationDetailsType) String() string {
-	if ad == nil {
-		return "<nil>"
+// SanitizeAuthorizationDetailTypes returns authorization details without internal ID that added during processing
+func SanitizeAuthorizationDetailTypes(adts []RFC9396AuthorizationDetailsType) []RFC9396AuthorizationDetailsType {
+	if len(adts) == 0 {
+		return adts
 	}
 
-	return fmt.Sprintf("%+v", *ad)
+	result := []RFC9396AuthorizationDetailsType{}
+	for _, ad := range adts {
+		result = append(result, ad.WithoutInternalID())
+	}
+	return result
 }
 
+// RFC9396AuthorizationDetailsTypeHandler handles validation, ID calculation and other processing
 type RFC9396AuthorizationDetailsTypeHandler interface {
-	Validate(t *RFC9396AuthorizationDetailsType) error
+	// Validate should check the JSON properties of the authorization detail object, possibly using JSON schema
+	Validate(t RFC9396AuthorizationDetailsType) error
 
-	GetID(t *RFC9396AuthorizationDetailsType) (string, error)
+	// GetID returns internal ID calculated using RFC9396GetAuthorizationDetailsIDStrategy or script
+	GetID(t RFC9396AuthorizationDetailsType) (string, error)
+
+	// Handle is used to do extra processing for a particular authorization detail type
+	// Return true if this authorization detail is meaningless to indicate any fine-grained authorization
+	Handle(ctx context.Context, req Requester, t RFC9396AuthorizationDetailsType) (bool, error)
 }
 
 type RFC9396DefaultAuthorizationDetailsTypeHandler struct {
@@ -159,8 +146,8 @@ type RFC9396DefaultAuthorizationDetailsTypeHandler struct {
 }
 
 // Validate validates the common properties.
-func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Validate(t *RFC9396AuthorizationDetailsType) error {
-	if len(t.Type) == 0 {
+func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Validate(t RFC9396AuthorizationDetailsType) error {
+	if len(t.GetType()) == 0 {
 		return errorsx.WithStack(ErrInvalidAuthorizationDetails.WithHint("Missing 'type' in the authorization details object."))
 	}
 
@@ -168,28 +155,38 @@ func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Validate(t *RFC9396Autho
 }
 
 // GetID generates a unique identifier to identify this object
-func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) GetID(t *RFC9396AuthorizationDetailsType) (string, error) {
+func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) GetID(t RFC9396AuthorizationDetailsType) (string, error) {
 	if h.RFC9396GetAuthorizationDetailsIDStrategy == nil {
-		h.RFC9396GetAuthorizationDetailsIDStrategy = RFC9396GetAuthorizationDetailsIDDefaultStrategy
+		h.RFC9396GetAuthorizationDetailsIDStrategy = RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy
 	}
 	return h.RFC9396GetAuthorizationDetailsIDStrategy(t)
 }
 
-type RFC9396GetAuthorizationDetailsIDStrategy func(t *RFC9396AuthorizationDetailsType) (string, error)
+func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Handle(ctx context.Context, req Requester,
+	t RFC9396AuthorizationDetailsType) (bool, error) {
+	return false, nil
+}
 
-func RFC9396GetAuthorizationDetailsIDDefaultStrategy(t *RFC9396AuthorizationDetailsType) (string, error) {
+type RFC9396GetAuthorizationDetailsIDStrategy func(t RFC9396AuthorizationDetailsType) (string, error)
+
+func RFC9396GetAuthorizationDetailsIDDefaultStrategy(t RFC9396AuthorizationDetailsType) (string, error) {
+	identifier := t.GetPropertyAsString("identifier")
+	actions := t.GetPropertyAsStringList("actions")
+	datatypes := t.GetPropertyAsStringList("datatypes")
+	locations := t.GetPropertyAsStringList("locations")
+	privileges := t.GetPropertyAsStringList("privileges")
 	// sort the string array first to get consistent result
-	sort.Strings(t.Actions)
-	sort.Strings(t.Datatypes)
-	sort.Strings(t.Locations)
-	sort.Strings(t.Privileges)
+	sort.Strings(actions)
+	sort.Strings(datatypes)
+	sort.Strings(locations)
+	sort.Strings(privileges)
 	// key is concatenation of known fields, then hash it
-	key := fmt.Sprintf("%v.%v.%v.%v.%v", t.Identifier, t.Actions, t.Datatypes, t.Locations, t.Privileges)
+	key := fmt.Sprintf("%v.%v.%v.%v.%v", identifier, actions, datatypes, locations, privileges)
 	hash := sha512.Sum512([]byte(key))
 	return base64.RawURLEncoding.EncodeToString(hash[:]), nil
 }
 
-func RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy(t *RFC9396AuthorizationDetailsType) (string, error) {
+func RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy(t RFC9396AuthorizationDetailsType) (string, error) {
 	// for this, we just hash the whole json
 	if b, err := t.MarshalJSON(); err == nil {
 		hash := sha512.Sum512(b)

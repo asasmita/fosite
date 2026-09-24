@@ -322,19 +322,19 @@ type Requester interface {
 
 type RFC9396Requester interface {
 	// GetRequestedAuthorizationDetails returns the request's authorization details.
-	GetRequestedAuthorizationDetails() []*RFC9396AuthorizationDetailsType
+	GetRequestedAuthorizationDetails() []RFC9396AuthorizationDetailsType
 
 	// SetRequestedAuthorizationDetails sets the request's authorization details.
-	SetRequestedAuthorizationDetails(types []*RFC9396AuthorizationDetailsType)
+	SetRequestedAuthorizationDetails(types []RFC9396AuthorizationDetailsType)
 
 	// AppendRequestedAuthorizationDetail appends an authorization detail to the request.
-	AppendRequestedAuthorizationDetail(ad *RFC9396AuthorizationDetailsType)
+	AppendRequestedAuthorizationDetail(ad RFC9396AuthorizationDetailsType)
 
 	// GetGrantedAuthorizationDetails returns all granted authorization details.
-	GetGrantedAuthorizationDetails() []*RFC9396AuthorizationDetailsType
+	GetGrantedAuthorizationDetails() []RFC9396AuthorizationDetailsType
 
 	// GrantAuthorizationDetail marks a request's authorization detail as granted.
-	GrantAuthorizationDetail(ad *RFC9396AuthorizationDetailsType)
+	GrantAuthorizationDetail(ad RFC9396AuthorizationDetailsType)
 }
 
 // RefreshTokenAccessRequester is an extended AccessRequester implementation that allows preserving

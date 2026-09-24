@@ -30,6 +30,7 @@ type RefreshTokenGrantHandler struct {
 		fosite.ScopeStrategyProvider
 		fosite.AudienceStrategyProvider
 		fosite.RefreshTokenScopesProvider
+		fosite.RFC9396ConfigProvider
 	}
 
 	// IgnoreRequestedScopeNotInOriginalGrant determines the action to take when the requested scopes in the refresh
@@ -167,22 +168,36 @@ func (c *RefreshTokenGrantHandler) handleAuthorizationDetails(ctx context.Contex
 		return nil
 	}
 
+	ignoreUnknownAuthorizationDetailsType := config.GetIgnoreUnknownAuthorizationDetailsType(ctx)
+	restrictAuthorizationDetailsType := config.ShouldRestrictAuthorizationDetailsType(ctx)
+
 	granted := rfc9396OriginalRequest.GetGrantedAuthorizationDetails()
 	strategy := config.GetAuthorizationDetailsStrategy(ctx)
 	client, _ := requester.GetClient().(fosite.RFC9396Client)
 	for _, ad := range rfc9396Requester.GetRequestedAuthorizationDetails() {
-		if !slices.ContainsFunc(granted, func(v *fosite.RFC9396AuthorizationDetailsType) bool {
+		adType := ad.GetType()
+
+		if !slices.ContainsFunc(granted, func(v fosite.RFC9396AuthorizationDetailsType) bool {
 			return ad.Equals(v)
 		}) {
 			if c.IgnoreRequestedScopeNotInOriginalGrant {
 				continue
 			}
 
-			return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf("The requested authorization detail '%s' was not originally granted by the resource owner.", ad.Type))
+			return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf("The requested authorization detail '%s' was not originally granted by the resource owner.", adType))
 		}
 
-		if client != nil && strategy != nil && !strategy(client.GetAuthorizationDetailTypes(), ad.Type) {
-			return errorsx.WithStack(fosite.ErrInvalidScope.WithHintf("The OAuth 2.0 Client is not allowed to request authorization details of type '%s'.", ad.Type))
+		if restrictAuthorizationDetailsType {
+
+			if strategy != nil && client != nil && !strategy(client.GetAuthorizationDetailTypes(), adType) {
+				if ignoreUnknownAuthorizationDetailsType {
+					continue
+				}
+				// if not ignoring unknown type, throw error
+				return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf(
+					"Request for authorization detail of type '%s' is not allowed.", adType))
+			}
+
 		}
 
 		rfc9396Requester.GrantAuthorizationDetail(ad)

@@ -150,7 +150,7 @@ func (s *AuthorizeHandlerTestSuite) TestValidAuthorizationDetail() {
 	requestedAD := requester.GetRequestedAuthorizationDetails()
 	s.EqualValues(1, len(requestedAD), "Expected number of authorization details is 0; found %+v", requestedAD)
 
-	instructedAmount := fosite.Map(requestedAD[0].Extra).SafeMap("instructedAmount", nil)
+	instructedAmount := fosite.Map(requestedAD[0]).SafeMap("instructedAmount", nil)
 	amount := fosite.Map(instructedAmount).SafeString("amount", "")
 	s.EqualValues("123.50", amount, "Amount doesn't match.")
 }
