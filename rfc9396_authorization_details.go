@@ -78,26 +78,15 @@ func (ad RFC9396AuthorizationDetailsType) getIDOrDefault() string {
 	return dfltID
 }
 
-func (ad RFC9396AuthorizationDetailsType) UnmarshalJSON(data []byte) error {
-	if len(data) == 0 {
-		return nil
-	}
-
-	if err := json.Unmarshal(data, &ad); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (ad RFC9396AuthorizationDetailsType) MarshalJSON() ([]byte, error) {
-	return json.Marshal(ad)
+	return json.Marshal(map[string]any(ad))
 }
 
 func (ad RFC9396AuthorizationDetailsType) String() string {
 	if ad == nil {
 		return "<nil>"
 	}
-	return fmt.Sprintf("%+v", ad)
+	return fmt.Sprintf("%+v", map[string]any(ad))
 }
 
 // WithoutInternalID returns copy of the map without internal ID

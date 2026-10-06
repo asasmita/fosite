@@ -40,6 +40,7 @@ func (s *AuthorizeHandlerTestSuite) SetupTest() {
 		},
 		AuthorizationDetailsStrategy:          fosite.RFC9396ExactAuthorizationDetailsStrategy,
 		IgnoreUnknownAuthorizationDetailsType: true,
+		RestrictAuthorizationDetailsType:      true,
 	}
 
 	s.handler = &rfc9396.AuthorizeHandler{
@@ -97,7 +98,8 @@ func (s *AuthorizeHandlerTestSuite) TestUnknownAuthorizationDetailWithStricterCo
 		AuthorizationDetailsTypeHandlers: map[string]fosite.RFC9396AuthorizationDetailsTypeHandler{
 			"payment_initiation": nil,
 		},
-		AuthorizationDetailsStrategy: fosite.RFC9396ExactAuthorizationDetailsStrategy,
+		AuthorizationDetailsStrategy:     fosite.RFC9396ExactAuthorizationDetailsStrategy,
+		RestrictAuthorizationDetailsType: true,
 	}
 
 	handler := &rfc9396.AuthorizeHandler{
@@ -107,7 +109,7 @@ func (s *AuthorizeHandlerTestSuite) TestUnknownAuthorizationDetailWithStricterCo
 	err := handler.ValidateAuthorizeEndpointRequest(ctx, requester)
 
 	s.NotNil(err, "error is nil")
-	expectedErr := fosite.ErrInvalidAuthorizationDetails.WithHintf("Unknown authorization detail type %s", "unknown_type")
+	expectedErr := fosite.ErrInvalidAuthorizationDetails.WithHintf("Request for authorization detail of type '%s' is not allowed.", "unknown_type")
 	receivedErr := fosite.ErrorToRFC6749Error(err)
 	s.EqualValues(expectedErr.GetDescription(), receivedErr.GetDescription(), "error does not match")
 	s.EqualValues(expectedErr.ErrorField, receivedErr.ErrorField, "error does not match")
@@ -183,5 +185,5 @@ func (s *AuthorizeHandlerTestSuite) TestInvalidAuthorizationDetailData() {
 	err := s.handler.ValidateAuthorizeEndpointRequest(ctx, requester)
 
 	s.NotNil(err, "error is nil")
-	s.EqualError(err, "instructedAmount is required.")
+	s.EqualError(err, "invalid_authorization_details")
 }
