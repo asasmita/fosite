@@ -235,7 +235,7 @@ func getGrantedAuthDetails(_ context.Context, req fosite.Requester) []map[string
 
 	lm := make([]map[string]any, len(ads))
 	for i, ad := range ads {
-		lm[i] = ad.WithoutInternalID()
+		lm[i] = ad
 	}
 
 	return lm
