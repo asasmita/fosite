@@ -9,7 +9,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/go-jose/go-jose/v3"
+	"github.com/go-jose/go-jose/v4"
 
 	"github.com/ory/fosite"
 	"github.com/ory/fosite/internal"
@@ -110,8 +110,8 @@ func NewExampleStore() *MemoryStore {
 		Clients: map[string]fosite.Client{
 			"my-client": &fosite.DefaultClient{
 				ID:             "my-client",
-				Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
-				RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
+				Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // HashiCorpIgnore
+				RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // HashiCorpIgnore
 				RedirectURIs:   []string{"http://localhost:3846/callback"},
 				ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
 				GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials", "urn:ietf:params:oauth:grant-type:token-exchange"},
@@ -120,8 +120,8 @@ func NewExampleStore() *MemoryStore {
 			"custom-lifespan-client": &fosite.DefaultClientWithCustomTokenLifespans{
 				DefaultClient: &fosite.DefaultClient{
 					ID:             "custom-lifespan-client",
-					Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // = "foobar"
-					RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // = "foobaz",
+					Secret:         []byte(`$2a$10$IxMdI6d.LIRZPpSfEwNoeu4rY3FhDREsxFJXikcgdRRAStxUlsuEO`),            // HashiCorpIgnore
+					RotatedSecrets: [][]byte{[]byte(`$2y$10$X51gLxUQJ.hGw1epgHTE5u0bt64xM0COU7K9iAp.OFg8p2pUd.1zC `)}, // HashiCorpIgnore
 					RedirectURIs:   []string{"http://localhost:3846/callback"},
 					ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
 					GrantTypes:     []string{"implicit", "refresh_token", "authorization_code", "password", "client_credentials"},
@@ -131,7 +131,7 @@ func NewExampleStore() *MemoryStore {
 			},
 			"encoded:client": &fosite.DefaultClient{
 				ID:             "encoded:client",
-				Secret:         []byte(`$2a$10$A7M8b65dSSKGHF0H2sNkn.9Z0hT8U1Nv6OWPV3teUUaczXkVkxuDS`), // = "encoded&password"
+				Secret:         []byte(`$2a$10$A7M8b65dSSKGHF0H2sNkn.9Z0hT8U1Nv6OWPV3teUUaczXkVkxuDS`), // HashiCorpIgnore
 				RotatedSecrets: nil,
 				RedirectURIs:   []string{"http://localhost:3846/callback"},
 				ResponseTypes:  []string{"id_token", "code", "token", "id_token token", "code id_token", "code token", "code id_token token"},
