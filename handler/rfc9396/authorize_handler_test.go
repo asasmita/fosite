@@ -13,6 +13,14 @@ import (
 	"github.com/stretchr/testify/suite"
 )
 
+var (
+	limits = &fosite.JSONLimits{
+		MaxDepth:         2,
+		MaxArrayElements: 2,
+		MaxSizePerObject: 500,
+	}
+)
+
 type AuthorizeHandlerTestSuite struct {
 	suite.Suite
 	config  fosite.RFC9396ConfigProvider
@@ -38,8 +46,8 @@ func (s *AuthorizeHandlerTestSuite) SetupTest() {
 		AuthorizationDetailsTypeHandlers: map[string]fosite.RFC9396AuthorizationDetailsTypeHandler{
 			"payment_initiation": &PaymentInitiationTypeHandler{},
 		},
-		AuthorizationDetailsStrategy:          fosite.RFC9396ExactAuthorizationDetailsStrategy,
-		IgnoreUnknownAuthorizationDetailsType: true,
+		AuthorizationDetailsStrategy: fosite.RFC9396DefaultAuthorizationDetailsStrategy,
+		AuthorizationDetailsLimits:   limits,
 	}
 
 	s.handler = &rfc9396.AuthorizeHandler{
@@ -57,9 +65,13 @@ func (s *AuthorizeHandlerTestSuite) TestUnknownAuthorizationDetail() {
 	ctx := context.Background()
 	requester := &fosite.AuthorizeRequest{
 		Request: fosite.Request{
-			Client: &fosite.DefaultRFC9396Client{
-				DefaultClient:        &fosite.DefaultClient{},
-				AuthorizationDetails: fosite.Arguments{"payment_initiation", "data_access"},
+			Client: &fosite.DefaultOptionalRFC9396Client{
+				DefaultRFC9396Client: &fosite.DefaultRFC9396Client{
+					DefaultClient:        &fosite.DefaultClient{},
+					AuthorizationDetails: fosite.Arguments{"payment_initiation", "data_access"},
+				},
+				RestrictAuthorizationDetailTypes:     true,
+				IgnoreUnknownAuthorizationDetailType: true,
 			},
 			Form: url.Values{
 				"authorization_details": []string{`[{
@@ -69,7 +81,19 @@ func (s *AuthorizeHandlerTestSuite) TestUnknownAuthorizationDetail() {
 		},
 	}
 
-	err := s.handler.ValidateAuthorizeEndpointRequest(ctx, requester)
+	config := &fosite.Config{
+		AuthorizationDetailTypesSupported: []string{"payment_initiation", "data_access", "emr_authorization"},
+		AuthorizationDetailsTypeHandlers: map[string]fosite.RFC9396AuthorizationDetailsTypeHandler{
+			"payment_initiation": nil,
+		},
+		AuthorizationDetailsStrategy: fosite.OptionalRFC9396AuthorizationDetailsStrategy,
+	}
+
+	handler := &rfc9396.AuthorizeHandler{
+		Config: config,
+	}
+
+	err := handler.ValidateAuthorizeEndpointRequest(ctx, requester)
 
 	s.Nil(err, "error is not nil; %+v", err)
 	requestedAD := requester.GetRequestedAuthorizationDetails()
@@ -97,7 +121,7 @@ func (s *AuthorizeHandlerTestSuite) TestUnknownAuthorizationDetailWithStricterCo
 		AuthorizationDetailsTypeHandlers: map[string]fosite.RFC9396AuthorizationDetailsTypeHandler{
 			"payment_initiation": nil,
 		},
-		AuthorizationDetailsStrategy: fosite.RFC9396ExactAuthorizationDetailsStrategy,
+		AuthorizationDetailsStrategy: fosite.RFC9396DefaultAuthorizationDetailsStrategy,
 	}
 
 	handler := &rfc9396.AuthorizeHandler{
@@ -107,7 +131,7 @@ func (s *AuthorizeHandlerTestSuite) TestUnknownAuthorizationDetailWithStricterCo
 	err := handler.ValidateAuthorizeEndpointRequest(ctx, requester)
 
 	s.NotNil(err, "error is nil")
-	expectedErr := fosite.ErrInvalidAuthorizationDetails.WithHintf("Unknown authorization detail type %s", "unknown_type")
+	expectedErr := fosite.ErrInvalidAuthorizationDetails.WithHintf("Request for authorization detail of type '%s' is not allowed.", "unknown_type")
 	receivedErr := fosite.ErrorToRFC6749Error(err)
 	s.EqualValues(expectedErr.GetDescription(), receivedErr.GetDescription(), "error does not match")
 	s.EqualValues(expectedErr.ErrorField, receivedErr.ErrorField, "error does not match")
@@ -150,7 +174,7 @@ func (s *AuthorizeHandlerTestSuite) TestValidAuthorizationDetail() {
 	requestedAD := requester.GetRequestedAuthorizationDetails()
 	s.EqualValues(1, len(requestedAD), "Expected number of authorization details is 0; found %+v", requestedAD)
 
-	instructedAmount := fosite.Map(requestedAD[0].Extra).SafeMap("instructedAmount", nil)
+	instructedAmount := fosite.Map(requestedAD[0]).SafeMap("instructedAmount", nil)
 	amount := fosite.Map(instructedAmount).SafeString("amount", "")
 	s.EqualValues("123.50", amount, "Amount doesn't match.")
 }
@@ -183,5 +207,5 @@ func (s *AuthorizeHandlerTestSuite) TestInvalidAuthorizationDetailData() {
 	err := s.handler.ValidateAuthorizeEndpointRequest(ctx, requester)
 
 	s.NotNil(err, "error is nil")
-	s.EqualError(err, "instructedAmount is required.")
+	s.EqualError(err, "invalid_authorization_details")
 }

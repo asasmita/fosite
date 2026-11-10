@@ -378,9 +378,13 @@ type RFC9396ConfigProvider interface {
 	// the standard.
 	GetAuthorizationDetailTypeHandlers(ctx context.Context) map[string]RFC9396AuthorizationDetailsTypeHandler
 
+	// GetDefaultAuthorizationDetailTypeHandler returns the default type handler
+	GetDefaultAuthorizationDetailTypeHandler(ctx context.Context) RFC9396AuthorizationDetailsTypeHandler
+
 	// GetAuthorizationDetailsStrategy returns a RFC9396AuthorizationDetailsStrategy.
 	GetAuthorizationDetailsStrategy(ctx context.Context) RFC9396AuthorizationDetailsStrategy
 
-	// GetIgnoreUnknownAuthorizationDetailsType indicates if unknown authorization details should be ignored.
-	GetIgnoreUnknownAuthorizationDetailsType(ctx context.Context) bool
+	// GetAuthorizationDetailsLimits returns JSONLimits that defines the limits impose
+	// on authorization_details such as how many can be requested, the size and the depth of authorization detail JSON
+	GetAuthorizationDetailsLimits(ctx context.Context) *JSONLimits
 }

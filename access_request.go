@@ -28,7 +28,7 @@ func (a *AccessRequest) SetGrantedScopes(scopes Arguments) {
 	a.GrantedScope = scopes
 }
 
-func (a *AccessRequest) SetGrantedAuthorizationDetails(types []*RFC9396AuthorizationDetailsType) {
+func (a *AccessRequest) SetGrantedAuthorizationDetails(types []RFC9396AuthorizationDetailsType) {
 	a.GrantedAuthorizationDetails = types
 }
 

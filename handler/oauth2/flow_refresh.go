@@ -30,6 +30,7 @@ type RefreshTokenGrantHandler struct {
 		fosite.ScopeStrategyProvider
 		fosite.AudienceStrategyProvider
 		fosite.RefreshTokenScopesProvider
+		fosite.RFC9396ConfigProvider
 	}
 
 	// IgnoreRequestedScopeNotInOriginalGrant determines the action to take when the requested scopes in the refresh
@@ -171,18 +172,24 @@ func (c *RefreshTokenGrantHandler) handleAuthorizationDetails(ctx context.Contex
 	strategy := config.GetAuthorizationDetailsStrategy(ctx)
 	client, _ := requester.GetClient().(fosite.RFC9396Client)
 	for _, ad := range rfc9396Requester.GetRequestedAuthorizationDetails() {
-		if !slices.ContainsFunc(granted, func(v *fosite.RFC9396AuthorizationDetailsType) bool {
+		adType := ad.GetType()
+
+		if !slices.ContainsFunc(granted, func(v fosite.RFC9396AuthorizationDetailsType) bool {
 			return ad.Equals(v)
 		}) {
 			if c.IgnoreRequestedScopeNotInOriginalGrant {
 				continue
 			}
 
-			return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf("The requested authorization detail '%s' was not originally granted by the resource owner.", ad.Type))
+			return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf("The requested authorization detail '%s' was not originally granted by the resource owner.", adType))
 		}
 
-		if client != nil && strategy != nil && !strategy(client.GetAuthorizationDetailTypes(), ad.Type) {
-			return errorsx.WithStack(fosite.ErrInvalidScope.WithHintf("The OAuth 2.0 Client is not allowed to request authorization details of type '%s'.", ad.Type))
+		if strategy != nil && client != nil {
+			if skip, err := strategy(client, adType); skip {
+				continue // skip authorization detail type, do not process further
+			} else if err != nil {
+				return err
+			}
 		}
 
 		rfc9396Requester.GrantAuthorizationDetail(ad)
