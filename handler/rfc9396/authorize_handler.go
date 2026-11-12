@@ -32,13 +32,13 @@ type AuthorizeHandler struct {
 // ValidateAuthorizeEndpointRequest validates and enriches an authorize endpoint request. This mirrors TokenEndpointHandler's
 // HandleTokenEndpointRequest, which is used for the same purpose.
 func (h *AuthorizeHandler) ValidateAuthorizeEndpointRequest(ctx context.Context, requester fosite.AuthorizeRequester) error {
-	return validateAndEnrichRequester(ctx, requester.GetClient(), requester, h.Config)
+	return validateAndEnrichRequester(ctx, requester, h.Config)
 }
 
 // ValidateDeviceAuthorizeEndpointRequest validates and enriches an authorize endpoint request. This mirrors TokenEndpointHandler's
 // HandleTokenEndpointRequest, which is used for the same purpose.
 func (h *AuthorizeHandler) ValidateDeviceAuthorizeEndpointRequest(ctx context.Context, requester fosite.DeviceAuthorizeRequester) error {
-	return validateAndEnrichRequester(ctx, requester.GetClient(), requester, h.Config)
+	return validateAndEnrichRequester(ctx, requester, h.Config)
 }
 
 func (h *AuthorizeHandler) HandleAuthorizeEndpointRequest(ctx context.Context, ar fosite.AuthorizeRequester, resp fosite.AuthorizeResponder) error {
@@ -72,7 +72,7 @@ func (h *AuthorizeHandler) HandleAuthorizeEndpointRequest(ctx context.Context, a
 	return nil
 }
 
-func validateAndEnrichRequester(ctx context.Context, c fosite.Client, requester fosite.Requester, config fosite.RFC9396ConfigProvider) error {
+func validateAndEnrichRequester(ctx context.Context, requester fosite.Requester, config fosite.RFC9396ConfigProvider) error {
 	param := requester.GetRequestForm().Get("authorization_details")
 	if len(param) == 0 {
 		return nil
@@ -102,8 +102,6 @@ func validateAndEnrichRequester(ctx context.Context, c fosite.Client, requester 
 		}
 	}
 
-	client, _ := c.(fosite.RFC9396Client)
-	strategy := config.GetAuthorizationDetailsStrategy(ctx)
 	typeHandlers := config.GetAuthorizationDetailTypeHandlers(ctx)
 	for _, ad := range ads {
 		t := fosite.RFC9396AuthorizationDetailsType(ad)
@@ -130,24 +128,13 @@ func validateAndEnrichRequester(ctx context.Context, c fosite.Client, requester 
 			t.SetID(id)
 		}
 
-		// Call Handle to perform any processing necessary
-		if skip, err := th.Handle(ctx, requester, t); err != nil {
-			return err
-		} else if skip {
-			// When skip, the authorization detail is not added to requested authorization detail
-			continue
-		}
-
-		// Last, check against client configuration
-		if strategy != nil && client != nil {
-			if skip, err := strategy(client, adType); skip {
-				continue // skip authorization detail type, do not process further
-			} else if err != nil {
-				return err
-			}
-		}
-
 		req.AppendRequestedAuthorizationDetail(t)
+	}
+
+	if strategy := config.GetAuthorizationDetailsStrategy(ctx); strategy != nil {
+		if err := strategy(ctx, requester); err != nil {
+			return err
+		}
 	}
 
 	return nil

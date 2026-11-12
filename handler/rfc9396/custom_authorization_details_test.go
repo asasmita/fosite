@@ -4,7 +4,6 @@
 package rfc9396_test
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/ory/fosite"
@@ -33,9 +32,4 @@ func (h *PaymentInitiationTypeHandler) Validate(t fosite.RFC9396AuthorizationDet
 	}
 
 	return h.RFC9396DefaultAuthorizationDetailsTypeHandler.Validate(t)
-}
-
-func (h *PaymentInitiationTypeHandler) Handle(ctx context.Context, req fosite.Requester,
-	t fosite.RFC9396AuthorizationDetailsType) (bool, error) {
-	return false, nil
 }

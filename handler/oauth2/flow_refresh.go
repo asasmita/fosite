@@ -168,9 +168,14 @@ func (c *RefreshTokenGrantHandler) handleAuthorizationDetails(ctx context.Contex
 		return nil
 	}
 
+	// The strategy applies to the requested authorization details, so apply it first before matching with the granted ones
+	if strategy := config.GetAuthorizationDetailsStrategy(ctx); strategy != nil {
+		if err := strategy(ctx, requester); err != nil {
+			return err
+		}
+	}
+
 	granted := rfc9396OriginalRequest.GetGrantedAuthorizationDetails()
-	strategy := config.GetAuthorizationDetailsStrategy(ctx)
-	client, _ := requester.GetClient().(fosite.RFC9396Client)
 	for _, ad := range rfc9396Requester.GetRequestedAuthorizationDetails() {
 		adType := ad.GetType()
 
@@ -182,14 +187,6 @@ func (c *RefreshTokenGrantHandler) handleAuthorizationDetails(ctx context.Contex
 			}
 
 			return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf("The requested authorization detail '%s' was not originally granted by the resource owner.", adType))
-		}
-
-		if strategy != nil && client != nil {
-			if skip, err := strategy(client, adType); skip {
-				continue // skip authorization detail type, do not process further
-			} else if err != nil {
-				return err
-			}
 		}
 
 		rfc9396Requester.GrantAuthorizationDetail(ad)

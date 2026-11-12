@@ -9,6 +9,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/ory/x/errorsx"
@@ -123,10 +124,6 @@ type RFC9396AuthorizationDetailsTypeHandler interface {
 
 	// GetID returns internal ID calculated using RFC9396GetAuthorizationDetailsIDStrategy or script
 	GetID(t RFC9396AuthorizationDetailsType) (string, error)
-
-	// Handle is used to do extra processing for a particular authorization detail type
-	// Return true if this authorization detail is meaningless to indicate any fine-grained authorization
-	Handle(ctx context.Context, req Requester, t RFC9396AuthorizationDetailsType) (bool, error)
 }
 
 type RFC9396DefaultAuthorizationDetailsTypeHandler struct {
@@ -148,11 +145,6 @@ func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) GetID(t RFC9396Authoriza
 		h.RFC9396GetAuthorizationDetailsIDStrategy = RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy
 	}
 	return h.RFC9396GetAuthorizationDetailsIDStrategy(t)
-}
-
-func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Handle(ctx context.Context, req Requester,
-	t RFC9396AuthorizationDetailsType) (bool, error) {
-	return false, nil
 }
 
 type RFC9396GetAuthorizationDetailsIDStrategy func(t RFC9396AuthorizationDetailsType) (string, error)
@@ -184,40 +176,62 @@ func RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy(t RFC9396Authorization
 	}
 }
 
-// RFC9396AuthorizationDetailsStrategy is a strategy for matching authorization detail types.
-// Unlike ScopeStrategy, here RFC9396Client is passed in the argument.
-// Adopters may use multiple settings in the client to match authorization detail types.
-type RFC9396AuthorizationDetailsStrategy func(client RFC9396Client, adType string) (bool, error)
+// RFC9396AuthorizationDetailsStrategy is a strategy to further process authorization detail types.
+// The RequestedAuthorizationDetails has been populated in the requester object after the default validation
+type RFC9396AuthorizationDetailsStrategy func(ctx context.Context, requester Requester) error
 
-func RFC9396DefaultAuthorizationDetailsStrategy(client RFC9396Client, adType string) (bool, error) {
-	for _, this := range client.GetAuthorizationDetailTypes() {
-		if adType == this {
-			return false, nil
-		}
+func RFC9396DefaultAuthorizationDetailsStrategy(ctx context.Context, requester Requester) error {
+	req, ok := requester.(RFC9396Requester)
+	if !ok {
+		return nil
 	}
 
-	return false, errorsx.WithStack(ErrInvalidAuthorizationDetails.WithHintf(
-		"Request for authorization detail of type '%s' is not allowed.", adType))
+	client, ok := requester.GetClient().(RFC9396Client)
+	if !ok {
+		return nil
+	}
+
+	for _, ad := range req.GetRequestedAuthorizationDetails() {
+		if slices.Contains(client.GetAuthorizationDetailTypes(), ad.GetType()) {
+			continue
+		}
+		return errorsx.WithStack(ErrInvalidAuthorizationDetails.WithHintf(
+			"Request for authorization detail of type '%s' is not allowed.", ad.GetType()))
+	}
+	return nil
 }
 
-func OptionalRFC9396AuthorizationDetailsStrategy(client RFC9396Client, adType string) (bool, error) {
-	c, ok := client.(OptionalRFC9396Client)
+func OptionalRFC9396AuthorizationDetailsStrategy(ctx context.Context, requester Requester) error {
+	req, ok := requester.(RFC9396Requester)
 	if !ok {
-		return false, errorsx.WithStack(ErrInvalidClient.WithHintf("Missing client configuration."))
+		return nil
 	}
 
-	if c.ShouldRestrictAuthorizationDetailTypes() {
-		for _, this := range c.GetAuthorizationDetailTypes() {
-			if adType == this {
-				return false, nil
+	client, ok := requester.GetClient().(OptionalRFC9396Client)
+	if !ok {
+		return nil
+	}
+
+	ignoreUnknown := client.ShouldIgnoreUnknownAuthorizationDetailsType()
+	if client.ShouldRestrictAuthorizationDetailTypes() {
+
+		allowed := []RFC9396AuthorizationDetailsType{}
+		for _, ad := range req.GetRequestedAuthorizationDetails() {
+			if slices.Contains(client.GetAuthorizationDetailTypes(), ad.GetType()) {
+				allowed = append(allowed, ad)
+				continue
 			}
-		}
 
-		return c.ShouldIgnoreUnknownAuthorizationDetailsType(), errorsx.WithStack(ErrInvalidAuthorizationDetails.WithHintf(
-			"Request for authorization detail of type '%s' is not allowed.", adType))
+			if !ignoreUnknown {
+				return errorsx.WithStack(ErrInvalidAuthorizationDetails.WithHintf(
+					"Request for authorization detail of type '%s' is not allowed.", ad.GetType()))
+			} // otherwise just drop quietly
+		}
+		req.SetRequestedAuthorizationDetails(allowed)
+
 	}
 
-	return false, nil // allow any authorization detail types
+	return nil // allow any authorization detail types
 }
 
 type RFC9396Client interface {
