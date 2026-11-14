@@ -118,13 +118,13 @@ func validateAndEnrichRequester(ctx context.Context, requester fosite.Requester,
 		}
 
 		// Call validate - to check the JSON properties (may or may not base on JSON schema)
-		if err := th.Validate(t); err != nil {
+		if err := th.Validate(ctx, t); err != nil {
 			return errorsx.WithStack(fosite.ErrInvalidAuthorizationDetails.WithHintf(
 				"Authorization detail JSON of type '%s' does not conform to the expected schema.", adType))
 		}
 
 		// Calculate the ID early and set it into the authorization detail map
-		if id, err := th.GetID(t); err == nil {
+		if id, err := th.GetID(ctx, t); err == nil {
 			t.SetID(id)
 		}
 

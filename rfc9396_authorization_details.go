@@ -120,10 +120,10 @@ func SanitizeAuthorizationDetailTypes(adts []RFC9396AuthorizationDetailsType) []
 // RFC9396AuthorizationDetailsTypeHandler handles validation, ID calculation and other processing
 type RFC9396AuthorizationDetailsTypeHandler interface {
 	// Validate should check the JSON properties of the authorization detail object, possibly using JSON schema
-	Validate(t RFC9396AuthorizationDetailsType) error
+	Validate(ctx context.Context, t RFC9396AuthorizationDetailsType) error
 
 	// GetID returns internal ID calculated using RFC9396GetAuthorizationDetailsIDStrategy or script
-	GetID(t RFC9396AuthorizationDetailsType) (string, error)
+	GetID(ctx context.Context, t RFC9396AuthorizationDetailsType) (string, error)
 }
 
 type RFC9396DefaultAuthorizationDetailsTypeHandler struct {
@@ -131,7 +131,7 @@ type RFC9396DefaultAuthorizationDetailsTypeHandler struct {
 }
 
 // Validate validates the common properties.
-func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Validate(t RFC9396AuthorizationDetailsType) error {
+func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Validate(ctx context.Context, t RFC9396AuthorizationDetailsType) error {
 	if len(t.GetType()) == 0 {
 		return errorsx.WithStack(ErrInvalidAuthorizationDetails.WithHint("Missing 'type' in the authorization details object."))
 	}
@@ -140,7 +140,7 @@ func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) Validate(t RFC9396Author
 }
 
 // GetID generates a unique identifier to identify this object
-func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) GetID(t RFC9396AuthorizationDetailsType) (string, error) {
+func (h *RFC9396DefaultAuthorizationDetailsTypeHandler) GetID(ctx context.Context, t RFC9396AuthorizationDetailsType) (string, error) {
 	if h.RFC9396GetAuthorizationDetailsIDStrategy == nil {
 		h.RFC9396GetAuthorizationDetailsIDStrategy = RFC9396GetAuthorizationDetailsTypeIDJSONHashStrategy
 	}
