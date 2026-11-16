@@ -102,7 +102,6 @@ func validateAndEnrichRequester(ctx context.Context, requester fosite.Requester,
 		}
 	}
 
-	typeHandlers := config.GetAuthorizationDetailTypeHandlers(ctx)
 	for _, ad := range ads {
 		t := fosite.RFC9396AuthorizationDetailsType(ad)
 
@@ -112,9 +111,9 @@ func validateAndEnrichRequester(ctx context.Context, requester fosite.Requester,
 		}
 
 		// Find the type handler
-		th, ok := typeHandlers[adType]
-		if th == nil || !ok {
-			th = config.GetDefaultAuthorizationDetailTypeHandler(ctx)
+		th := config.GetAuthorizationDetailTypeHandler(ctx, adType)
+		if th == nil {
+			th = &fosite.RFC9396DefaultAuthorizationDetailsTypeHandler{}
 		}
 
 		// Call validate - to check the JSON properties (may or may not base on JSON schema)

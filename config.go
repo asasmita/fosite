@@ -372,14 +372,9 @@ type RFC9396ConfigProvider interface {
 	// the authorization server.
 	GetAuthorizationDetailTypesSupported(ctx context.Context) []string
 
-	// GetAuthorizationDetailTypeHandlers returns a set of type-based handlers to override the default
-	// behaviour of RFC9396DefaultAuthorizationDetailsTypeHandler. This is specifically necessary when
-	// a type has additional properties that are not covered within the common properties specified in
-	// the standard.
-	GetAuthorizationDetailTypeHandlers(ctx context.Context) map[string]RFC9396AuthorizationDetailsTypeHandler
-
-	// GetDefaultAuthorizationDetailTypeHandler returns the default type handler
-	GetDefaultAuthorizationDetailTypeHandler(ctx context.Context) RFC9396AuthorizationDetailsTypeHandler
+	// GetAuthorizationDetailTypeHandler returns the handler for a particular type.
+	// If not defined, the default type handler is RFC9396DefaultAuthorizationDetailsTypeHandler.
+	GetAuthorizationDetailTypeHandler(ctx context.Context, adType string) RFC9396AuthorizationDetailsTypeHandler
 
 	// GetAuthorizationDetailsStrategy returns a RFC9396AuthorizationDetailsStrategy.
 	GetAuthorizationDetailsStrategy(ctx context.Context) RFC9396AuthorizationDetailsStrategy

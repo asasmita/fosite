@@ -632,16 +632,14 @@ func (c *Config) GetAuthorizationDetailTypesSupported(ctx context.Context) []str
 	return c.AuthorizationDetailTypesSupported
 }
 
-// GetAuthorizationDetailTypeHandlers returns a set of type-based handlers to override the default
-// behaviour of RFC9396DefaultAuthorizationDetailsTypeHandler. This is specifically necessary when
-// a type has additional properties that are not covered within the common properties specified in
-// the standard.
-func (c *Config) GetAuthorizationDetailTypeHandlers(ctx context.Context) map[string]RFC9396AuthorizationDetailsTypeHandler {
-	return c.AuthorizationDetailsTypeHandlers
-}
-
-// GetDefaultAuthorizationDetailTypeHandler returns the default type handler
-func (c *Config) GetDefaultAuthorizationDetailTypeHandler(ctx context.Context) RFC9396AuthorizationDetailsTypeHandler {
+// GetAuthorizationDetailTypeHandler returns the handler for a particular type.
+// If not defined, the default type handler is RFC9396DefaultAuthorizationDetailsTypeHandler.
+func (c *Config) GetAuthorizationDetailTypeHandler(ctx context.Context, adType string) RFC9396AuthorizationDetailsTypeHandler {
+	if c.AuthorizationDetailsTypeHandlers != nil {
+		if h, ok := c.AuthorizationDetailsTypeHandlers[adType]; ok {
+			return h
+		}
+	}
 	return &RFC9396DefaultAuthorizationDetailsTypeHandler{}
 }
 
