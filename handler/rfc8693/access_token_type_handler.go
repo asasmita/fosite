@@ -222,21 +222,10 @@ func generateTokenObject(ctx context.Context, config fosite.Configurator, or fos
 	return tokenObject
 }
 
-func getGrantedAuthDetails(_ context.Context, req fosite.Requester) []map[string]any {
+func getGrantedAuthDetails(_ context.Context, req fosite.Requester) []fosite.RFC9396AuthorizationDetailsType {
 	req9396, ok := req.(fosite.RFC9396Requester)
 	if !ok {
 		return nil
 	}
-
-	ads := req9396.GetGrantedAuthorizationDetails()
-	if len(ads) == 0 {
-		return nil
-	}
-
-	lm := make([]map[string]any, len(ads))
-	for i, ad := range ads {
-		lm[i] = ad
-	}
-
-	return lm
+	return req9396.GetGrantedAuthorizationDetails()
 }
